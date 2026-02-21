@@ -30,22 +30,13 @@ class Calendar
             return;
         }
 
-        if (is_user_logged_in() && (int) get_current_user_id() !== (int) $order->get_user_id()) {
-            return;
-        }
-
         $date = (string) $order->get_meta('_wds_delivery_date');
         $slot = (string) $order->get_meta('_wds_delivery_slot');
         if (! $date || ! $slot) {
             return;
         }
 
-        $parts = array_map('trim', explode('-', $slot));
-        if (2 !== count($parts)) {
-            return;
-        }
-
-        [$start, $end] = $parts;
+        [$start, $end] = array_map('trim', explode('-', $slot));
 
         $start_dt = gmdate('Ymd\THis\Z', strtotime($date . ' ' . $start));
         $end_dt   = gmdate('Ymd\THis\Z', strtotime($date . ' ' . $end));

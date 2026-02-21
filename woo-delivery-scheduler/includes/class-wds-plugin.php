@@ -49,7 +49,6 @@ class Plugin
         add_action('init', [$this, 'load_textdomain']);
         add_action('init', [$this, 'register_pickup_location_taxonomy']);
         add_action('init', [$this, 'register_order_delivery_statuses']);
-        add_action('init', [$this, 'register_shortcodes']);
     }
 
     public function load_textdomain(): void
@@ -86,27 +85,6 @@ class Plugin
             'hierarchical'      => false,
             'show_in_rest'      => true,
         ]);
-    }
-
-
-    public function register_shortcodes(): void
-    {
-        add_shortcode('wds_delivery_availability', function () {
-            $minimum_hours = (float) $this->settings->get('minimum_delivery_hours');
-            $same_day      = (float) $this->settings->get('same_day_charge');
-            $next_day      = (float) $this->settings->get('next_day_charge');
-
-            $html  = '<div class="wds-delivery-availability">';
-            $html .= '<h3>' . esc_html__('Delivery Availability', 'woo-delivery-scheduler') . '</h3>';
-            $html .= '<ul>';
-            $html .= '<li>' . esc_html(sprintf(__('Minimum delivery lead time: %s hours', 'woo-delivery-scheduler'), $minimum_hours)) . '</li>';
-            $html .= '<li>' . esc_html(sprintf(__('Same-day surcharge: %s', 'woo-delivery-scheduler'), wc_price($same_day))) . '</li>';
-            $html .= '<li>' . esc_html(sprintf(__('Next-day surcharge: %s', 'woo-delivery-scheduler'), wc_price($next_day))) . '</li>';
-            $html .= '</ul>';
-            $html .= '</div>';
-
-            return $html;
-        });
     }
 
     public function register_order_delivery_statuses(): void

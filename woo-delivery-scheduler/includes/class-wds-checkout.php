@@ -76,15 +76,8 @@ class Checkout
             wc_add_notice(__('Please select a delivery type.', 'woo-delivery-scheduler'), 'error');
         }
 
-        if (! $this->is_date_available($delivery_date, $slot)) {
+        if (! $this->is_date_available($delivery_date)) {
             wc_add_notice(__('Selected date is not available (holiday, cut-off, or fully booked).', 'woo-delivery-scheduler'), 'error');
-        }
-
-        if ('pickup' === $type) {
-            $pickup_location = wc_clean(wp_unslash($_POST['wds_pickup_location'] ?? ''));
-            if ('' === $pickup_location) {
-                wc_add_notice(__('Please select a pickup location for pickup delivery type.', 'woo-delivery-scheduler'), 'error');
-            }
         }
 
         if (! $this->is_slot_available($delivery_date, $slot)) {
@@ -92,9 +85,8 @@ class Checkout
         }
     }
 
-    public function save_order_meta(WC_Order $order, array $data): void
+    public function save_order_meta(WC_Order $order): void
     {
-        unset($data);
         $meta = [
             '_wds_delivery_type'     => wc_clean(wp_unslash($_POST['wds_delivery_type'] ?? '')),
             '_wds_pickup_location'   => wc_clean(wp_unslash($_POST['wds_pickup_location'] ?? '')),
@@ -167,11 +159,11 @@ class Checkout
         }
 
         $today = current_time('Y-m-d');
-        if ($delivery_date === $today && $this->is_before_cutoff((string) $this->settings->get('same_day_cutoff'))) {
+        if ($delivery_date === $today) {
             WC()->cart->add_fee(__('Same-day delivery charge', 'woo-delivery-scheduler'), (float) $this->settings->get('same_day_charge'));
         }
 
-        if ($delivery_date === gmdate('Y-m-d', strtotime('+1 day', current_time('timestamp'))) && $this->is_before_cutoff((string) $this->settings->get('next_day_cutoff'))) {
+        if ($delivery_date === gmdate('Y-m-d', strtotime('+1 day', current_time('timestamp')))) {
             WC()->cart->add_fee(__('Next-day delivery charge', 'woo-delivery-scheduler'), (float) $this->settings->get('next_day_charge'));
         }
 
@@ -218,7 +210,7 @@ class Checkout
         return $options;
     }
 
-    private function is_date_available(string $delivery_date, string $slot): bool
+    private function is_date_available(string $delivery_date): bool
     {
         if (! $delivery_date) {
             return false;
@@ -229,12 +221,9 @@ class Checkout
             return false;
         }
 
-        $min_hours         = (int) $this->settings->get('minimum_delivery_hours');
-        $lead_cutoff       = strtotime('+' . $min_hours . ' hours', current_time('timestamp'));
-        $slot_start_time   = $this->extract_slot_start($slot);
-        $candidate_ts      = strtotime($delivery_date . ' ' . $slot_start_time);
-
-        if (false === $candidate_ts || $candidate_ts < $lead_cutoff) {
+        $min_hours    = (int) $this->settings->get('minimum_delivery_hours');
+        $lead_cutoff  = strtotime('+' . $min_hours . ' hours', current_time('timestamp'));
+        if (strtotime($delivery_date . ' 00:00:00') < $lead_cutoff) {
             return false;
         }
 
@@ -242,34 +231,6 @@ class Checkout
         $count       = (int) get_option('wds_booked_date_' . $delivery_date, 0);
 
         return $count < $daily_limit;
-    }
-
-    private function extract_slot_start(string $slot): string
-    {
-        if (false === strpos($slot, '-')) {
-            return '23:59:59';
-        }
-
-        [$start] = array_map('trim', explode('-', $slot));
-
-        return $start ?: '23:59:59';
-    }
-
-    private function is_before_cutoff(string $cutoff): bool
-    {
-        if (! preg_match('/^\d{2}:\d{2}$/', $cutoff)) {
-            return true;
-        }
-
-        $today      = current_time('Y-m-d');
-        $cutoff_ts  = strtotime($today . ' ' . $cutoff . ':00');
-        $current_ts = current_time('timestamp');
-
-        if (false === $cutoff_ts) {
-            return true;
-        }
-
-        return $current_ts <= $cutoff_ts;
     }
 
     private function is_slot_available(string $delivery_date, string $slot): bool
